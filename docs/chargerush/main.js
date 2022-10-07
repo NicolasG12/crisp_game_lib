@@ -1,71 +1,59 @@
-// The title of the game to be displayed on the title screen
 title = "CHARGE RUSH";
 
-// The description, which is also displayed on the title screen
 description = `
 Destroy enemies.
 `;
 
-// The array of custom sprites
 characters = [
-`
+	`
   ll
   ll
 ccllcc
 ccllcc
 ccllcc
 cc  cc
-`,`
+	`,`
 rr  rr
 rrrrrr
 rrpprr
 rrrrrr
   rr
   rr
-`,`
+	`,`
 y  y
 yyyyyy
  y  y
 yyyyyy
- y  y
-`
+ y  y	
+	`
 ];
 
-// Game design variable container
 const G = {
-	WIDTH: 100,
+	WIDTH: 100, 
 	HEIGHT: 150,
 
-    STAR_SPEED_MIN: 0.5,
+	STAR_SPEED_MIN: 0.5,
 	STAR_SPEED_MAX: 1.0,
-    
-    PLAYER_FIRE_RATE: 4,
-    PLAYER_GUN_OFFSET: 3,
 
-    FBULLET_SPEED: 5,
+	PLAYER_FIRE_RATE: 4,
+	PLAYER_GUN_OFFSET: 3,
 
-    ENEMY_MIN_BASE_SPEED: 1.0,
-    ENEMY_MAX_BASE_SPEED: 2.0,
-    ENEMY_FIRE_RATE: 45,
+	FBULLET_SPEED: 5,
 
-    EBULLET_SPEED: 2.0,
-    EBULLET_ROTATION_SPD: 0.1
+	ENEMY_MIN_BASE_SPEED: 1.0,
+	ENEMY_MAX_BASE_SPEED: 2.0,
+	ENEMY_FIRE_RATE: 45,
+
+	EBULLET_SPEED: 2.0,
+	EBULLET_ROTATION_SPD: 0.1
 };
 
-// Game runtime options
-// Refer to the official documentation for all available options
 options = {
 	viewSize: {x: G.WIDTH, y: G.HEIGHT},
-    isCapturing: true,
-    isCapturingGameCanvasOnly: true,
-    captureCanvasScale: 2,
-    seed: 1,
-    isPlayingBgm: true,
-    isReplayEnabled: true,
-    theme: "dark"
+	seed: 2,
+	isPlayingBgm: true
 };
 
-// JSDoc comments for typing
 /**
  * @typedef {{
  * pos: Vector,
@@ -100,6 +88,7 @@ let player;
 /**
  * @type { FBullet [] }
  */
+
 let fBullets;
 
 /**
@@ -110,11 +99,6 @@ let fBullets;
  */
 
 /**
- * @type { Enemy [] }
- */
-let enemies;
-
-/**
  * @typedef {{
  * pos: Vector,
  * angle: number,
@@ -123,11 +107,16 @@ let enemies;
  */
 
 /**
- * @type { EBullet [] }
+ * @type {EBullet [] }
  */
 let eBullets;
 
 /**
+ * @type { Enemy [] }
+ */
+let enemies;
+
+/** 
  * @type { number }
  */
 let currentEnemySpeed;
@@ -137,147 +126,145 @@ let currentEnemySpeed;
  */
 let waveCount;
 
-/**
- * 
- */
-
-// The game loop function
 function update() {
-    // The init function running at startup
 	if (!ticks) {
 		stars = times(20, () => {
-            const posX = rnd(0, G.WIDTH);
-            const posY = rnd(0, G.HEIGHT);
-            return {
-                pos: vec(posX, posY),
-                speed: rnd(G.STAR_SPEED_MIN, G.STAR_SPEED_MAX)
-            };
-        });
+			const posX = rnd(0, G.WIDTH);
+			const posY = rnd(0, G.HEIGHT);
 
-        player = {
-            pos: vec(G.WIDTH * 0.5, G.HEIGHT * 0.5),
-            firingCooldown: G.PLAYER_FIRE_RATE,
-            isFiringLeft: true
-        };
+			return {
+				pos: vec(posX, posY),
+				speed: rnd(0.5, 1.0)
+			};
+		});
+		player = {
+			pos: vec(G.WIDTH * 0.5, G.HEIGHT * 0.5),
+			firingCooldown: G.PLAYER_FIRE_RATE,
+			isFiringLeft: true
+		};
 
-        fBullets = [];
-        enemies = [];
-        eBullets = [];
+		fBullets = [];
 
-        waveCount = 0;
+		enemies = [];
+
+		eBullets = [];
+
+		waveCount = 0;
+		currentEnemySpeed = 0;
+	}
+	if(enemies.length === 0) {
+		currentEnemySpeed = 
+			rnd(G.ENEMY_MIN_BASE_SPEED, G.ENEMY_MAX_BASE_SPEED) * difficulty;
+		for(let i = 0; i < 9; i++) {
+			const posX = rnd(0, G.WIDTH);
+			const posY = -rnd(i * G.HEIGHT * 0.1);
+			enemies.push({ 
+				pos: vec(posX, posY), firingCooldown: G.ENEMY_FIRE_RATE});
+		};
 	}
 
-    // Spawning enemies
-    if (enemies.length === 0) {
-        currentEnemySpeed =
-            rnd(G.ENEMY_MIN_BASE_SPEED, G.ENEMY_MAX_BASE_SPEED) * difficulty;
-        for (let i = 0; i < 9; i++) {
-            const posX = rnd(0, G.WIDTH);
-            const posY = -rnd(i * G.HEIGHT * 0.1);
-            enemies.push({
-                pos: vec(posX, posY),
-                firingCooldown: G.ENEMY_FIRE_RATE 
-            });
-        }
+	waveCount++;
+	stars.forEach((s) => {
+		s.pos.y += s.speed;
+		//Bring the star back to the top once its past the bottom
+		s.pos.wrap(0, G.WIDTH, 0, G.HEIGHT);
+		
+		//choose a color
+		color("light_black");
+		//Draw the star as a square of size 1
+		box(s.pos, 1);
+	});
+	player.pos = vec(input.pos.x, input.pos.y);
+	player.pos.clamp(0, G.WIDTH, 0, G.HEIGHT);
 
-        waveCount++; // Increase the tracking variable by one
-    }
+	player.firingCooldown--;
 
-    // Update for Star
-    stars.forEach((s) => {
-        s.pos.y += s.speed;
-        if (s.pos.y > G.HEIGHT) s.pos.y = 0;
-        color("light_black");
-        box(s.pos, 1);
-    });
+	if(player.firingCooldown <= 0) {
+		const offset = (player.isFiringLeft)
+		? -G.PLAYER_GUN_OFFSET 
+		: G.PLAYER_GUN_OFFSET;
+		fBullets.push({
+			pos: vec(player.pos.x + offset, player.pos.y)
+		});
 
-    // Updating and drawing the player
-    player.pos = vec(input.pos.x, input.pos.y);
-    player.pos.clamp(0, G.WIDTH, 0, G.HEIGHT);
-    player.firingCooldown--;
-    if (player.firingCooldown <= 0) {
-        const offset = (player.isFiringLeft)
-            ? -G.PLAYER_GUN_OFFSET
-            : G.PLAYER_GUN_OFFSET;
-        fBullets.push({
-            pos: vec(player.pos.x + offset, player.pos.y)
-        });
-        player.firingCooldown = G.PLAYER_FIRE_RATE;
-        player.isFiringLeft = !player.isFiringLeft;
+		player.firingCooldown = G.PLAYER_FIRE_RATE;
 
-        color("yellow");
-        particle(
-            player.pos.x + offset, // x coordinate
-            player.pos.y, // y coordinate
-            4, // The number of particles
-            1, // The speed of the particles
-            -PI/2, // The emitting angle
-            PI/4  // The emitting width
-        );
-    }
-    color ("black");
-    char("a", player.pos);
+		player.isFiringLeft = !player.isFiringLeft;
 
-    fBullets.forEach((fb) => {
-        fb.pos.y -= G.FBULLET_SPEED;
-        color("yellow");
-        box(fb.pos, 2);
-    });
+		color("yellow");
 
+		particle(
+			player.pos.x + offset,
+			player.pos.y,
+			4, 
+			1, 
+			-PI/2,
+			PI/4
+		);
+	}
 
-    remove(enemies, (e) => {
-        e.pos.y += currentEnemySpeed;
-        e.firingCooldown--;
-        if (e.firingCooldown <= 0) {
-            eBullets.push({
-                pos: vec(e.pos.x, e.pos.y),
-                angle: e.pos.angleTo(player.pos),
-                rotation: rnd()
-            });
-            e.firingCooldown = G.ENEMY_FIRE_RATE;
-            play("select");
-        }
+	color("black");
+	char("a", player.pos);
 
-        color("black");
-        const isCollidingWithFBullets = char("b", e.pos).isColliding.rect.yellow;
-        const isCollidingWithPlayer = char("b", e.pos).isColliding.char.a;
-        if (isCollidingWithPlayer) {
-            end();
-            play("powerUp");
-        }
-        
-        if (isCollidingWithFBullets) {
-            color("yellow");
-            particle(e.pos);
-            play("explosion");
-            addScore(10 * waveCount, e.pos);
-        }
-        
-        return (isCollidingWithFBullets || e.pos.y > G.HEIGHT);
-    });
+	fBullets.forEach((fb) => {
+		fb.pos.y -= G.FBULLET_SPEED;
 
-    remove(fBullets, (fb) => {
-        color("yellow");
-        const isCollidingWithEnemies = box(fb.pos, 2).isColliding.char.b;
-        return (isCollidingWithEnemies || fb.pos.y < 0);
-    });
+		color("yellow");
+		box(fb.pos, 2);
+	});
 
-    remove(eBullets, (eb) => {
-        eb.pos.x += G.EBULLET_SPEED * Math.cos(eb.angle);
-        eb.pos.y += G.EBULLET_SPEED * Math.sin(eb.angle);
-        eb.rotation += G.EBULLET_ROTATION_SPD;
+	remove(enemies, (e) => {
+		e.pos.y += currentEnemySpeed;
+		e.firingCooldown--;
+		if(e.firingCooldown <= 0) {
+			eBullets.push({
+				pos: vec(e.pos.x, e.pos.y),
+				angle: e.pos.angleTo(player.pos),
+				rotation: rnd()
+			});
+			e.firingCooldown = G.ENEMY_FIRE_RATE;
+			play("select");
+		}
+		color("black");
+		const isCollidingWithFBullets = char("b", e.pos).isColliding.rect.yellow;
 
-        color("red");
-        const isCollidingWithPlayer
-            = char("c", eb.pos, {rotation: eb.rotation}).isColliding.char.a;
-        if (isCollidingWithPlayer) {
-            end();
-            play("powerUp");
-        }
-        const isCollidingWithFBullets
-            = char("c", eb.pos, {rotation: eb.rotation}).isColliding.rect.yellow;
-        if (isCollidingWithFBullets) addScore(1, eb.pos);
-        
-        return (!eb.pos.isInRect(0, 0, G.WIDTH, G.HEIGHT));
-    });
+		if(isCollidingWithFBullets) {
+			color("yellow");
+			particle(e.pos);
+			play("explosion");
+			addScore(10 * waveCount, e.pos);
+		}
+
+		return (isCollidingWithFBullets ||e.pos.y > G.HEIGHT);
+	});
+
+	remove(eBullets, (eb) => {
+		eb.pos.x += G.EBULLET_SPEED *  Math.cos(eb.angle);
+		eb.pos.y += G.EBULLET_SPEED * Math.sin(eb.angle);
+
+		eb.rotation += G.EBULLET_ROTATION_SPD;
+
+		color("red");
+		const isCollidingWithPlayer = 
+			char("c", eb.pos, {rotation: eb.rotation}).isColliding.char.a;
+
+		if(isCollidingWithPlayer) {
+			end();
+
+			play("powerUp");
+		};
+
+		const isCollidingWithFBullets
+			= char("c", eb.pos, {rotation: eb.rotation}).isColliding.rect.yellow;
+		if(isCollidingWithFBullets) addScore(1, eb.pos);
+
+		return(!eb.pos.isInRect(0, 0, G.WIDTH, G.HEIGHT));
+	})
+
+	
+	remove(fBullets, (fb) => {
+		color("yellow");
+		const isCollidingWithEnemies = box(fb.pos, 2).isColliding.char.b;
+		return (isCollidingWithEnemies ||fb.pos.y < 0);
+	});
 }
